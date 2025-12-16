@@ -180,13 +180,13 @@ class MonthlySplit(BaseCrossValidator):
     def __init__(self, time_col="index"):
         """
         Docstring for __init__
+        
+        :param self: Description
+        :param time_col: Description
         """
         self.time_col = time_col
 
     def __repr__(self):
-        """
-        Docstring for __repr__
-        """
         return f"MonthlySplit(time_col='{self.time_col}')"
 
     def _get_datetime_index(self, X):

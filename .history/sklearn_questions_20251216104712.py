@@ -186,6 +186,8 @@ class MonthlySplit(BaseCrossValidator):
     def __repr__(self):
         """
         Docstring for __repr__
+        
+        :param self: Description
         """
         return f"MonthlySplit(time_col='{self.time_col}')"
 

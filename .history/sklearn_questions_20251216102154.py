@@ -63,12 +63,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):
-        """
-        Docstring for __init__
-        
-        :param self: Description
-        :param n_neighbors: Description
-        """
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):
@@ -145,7 +139,21 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         return y_pred
 
     def score(self, X, y):
-        """Compute the accuracy of the classifier."""
+         """Calculate the score of the prediction.
+
+        Parameters
+        ----------
+        X : ndarray, shape (n_samples, n_features)
+            Data to score on.
+        y : ndarray, shape (n_samples,)
+            target values.
+
+        Returns
+        ----------
+        score : float
+            Accuracy of the model computed for the (X, y) pairs.
+        """
+         
         check_is_fitted(self, ["X_train_", "y_train_", "classes_"])
 
         X, y = validate_data(
@@ -163,34 +171,15 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
 
 
 class MonthlySplit(BaseCrossValidator):
-    """CrossValidator based on monthly split.
-
-    Split data based on the given `time_col` (or default to index). Each split
-    corresponds to one month of data for the training and the next month of
-    data for the test.
-
-    Parameters
-    ----------
-    time_col : str, defaults to 'index'
-        Column of the input DataFrame that will be used to split the data. This
-        column should be of type datetime. If split is called with a DataFrame
-        for which this column is not a datetime, it will raise a ValueError.
-        To use the index as column just set `time_col` to `'index'`.
-    """
+    
     def __init__(self, time_col="index"):
-        """
-        Docstring for __init__
-        """
         self.time_col = time_col
 
     def __repr__(self):
-        """
-        Docstring for __repr__
-        """
         return f"MonthlySplit(time_col='{self.time_col}')"
 
     def _get_datetime_index(self, X):
-        """Get the datetime index from the input data X."""
+        # 支持 DataFrame / Series
         if not isinstance(X, (pd.DataFrame, pd.Series)):
             raise ValueError(
                 "Input X should be a pandas DataFrame to use MonthlySplit."
@@ -220,47 +209,11 @@ class MonthlySplit(BaseCrossValidator):
         return pd.DatetimeIndex(col.to_numpy())
 
     def get_n_splits(self, X, y=None, groups=None):
-        """Return the number of splitting iterations in the cross-validator.
-
-        Parameters
-        ----------
-        X : array-like of shape (n_samples, n_features)
-            Training data, where `n_samples` is the number of samples
-            and `n_features` is the number of features.
-        y : array-like of shape (n_samples,)
-            Always ignored, exists for compatibility.
-        groups : array-like of shape (n_samples,)
-            Always ignored, exists for compatibility.
-
-        Returns
-        -------
-        n_splits : int
-            The number of splits.
-        """
         dt_index = self._get_datetime_index(X)
         months = dt_index.to_period("M").unique()
         return max(len(months) - 1, 0)
 
     def split(self, X, y=None, groups=None):
-        """Generate indices to split data into training and test set.
-
-        Parameters
-        ----------
-        X : array-like of shape (n_samples, n_features)
-            Training data, where `n_samples` is the number of samples
-            and `n_features` is the number of features.
-        y : array-like of shape (n_samples,)
-            Always ignored, exists for compatibility.
-        groups : array-like of shape (n_samples,)
-            Always ignored, exists for compatibility.
-
-        Yields
-        ------
-        idx_train : ndarray
-            The training set indices for that split.
-        idx_test : ndarray
-            The testing set indices for that split.
-        """
         dt_index = self._get_datetime_index(X)
         periods = dt_index.to_period("M")
         months = pd.PeriodIndex(periods.unique()).sort_values()

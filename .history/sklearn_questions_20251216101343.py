@@ -160,10 +160,9 @@ class MonthlySplit(BaseCrossValidator):
 
         col = X[self.time_col]
         if not pd.api.types.is_datetime64_any_dtype(col):
-            raise ValueError(
-                f"The column {self.time_col} is not of datetime type."
-                )
+            raise ValueError(f"The column {self.time_col} is not of datetime type.")
 
+        # ✅ 把“列值”转成 DatetimeIndex（不是用 Series.to_period）
         return pd.DatetimeIndex(col.to_numpy())
 
     def get_n_splits(self, X, y=None, groups=None):

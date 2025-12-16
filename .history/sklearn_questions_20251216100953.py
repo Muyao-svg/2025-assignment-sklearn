@@ -55,9 +55,21 @@ from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
-from sklearn.utils.validation import validate_data, check_is_fitted
-from sklearn.utils.multiclass import check_classification_targets
 
+from sklearn.utils.validation import check_is_fitted
+from sklearn.utils.validation import validate_data
+from sklearn.metrics.pairwise import pairwise_distances
+
+
+import numpy as np
+import pandas as pd
+
+from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.model_selection import BaseCrossValidator
+from sklearn.utils.validation import validate_data, check_is_fitted
+
+
+from sklearn.utils.multiclass import check_classification_targets
 
 class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
@@ -75,6 +87,8 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             y_numeric=False,
             multi_output=False,
         )
+
+        # ✅ 关键：检查 y 是否是分类标签（而不是连续值）
         check_classification_targets(y)
 
         self.X_train_ = X
@@ -129,6 +143,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         return float(np.mean(self.predict(X) == y))
 
 
+
 class MonthlySplit(BaseCrossValidator):
     def __init__(self, time_col="index"):
         self.time_col = time_col
@@ -139,31 +154,24 @@ class MonthlySplit(BaseCrossValidator):
     def _get_datetime_index(self, X):
         # 支持 DataFrame / Series
         if not isinstance(X, (pd.DataFrame, pd.Series)):
-            raise ValueError(
-                "Input X should be a pandas DataFrame to use MonthlySplit."
-                )
+            raise ValueError("Input X should be a pandas DataFrame to use MonthlySplit.")
 
         if self.time_col == "index":
             time_vals = X.index
             if not pd.api.types.is_datetime64_any_dtype(time_vals):
-                raise ValueError(
-                    f"The column {self.time_col} is not of datetime type."
-                    )
-
+                raise ValueError(f"The column {self.time_col} is not of datetime type.")
+            # ✅ 直接保证是 DatetimeIndex
             return pd.DatetimeIndex(time_vals)
 
         # time_col != 'index' 时必须是 DataFrame
         if isinstance(X, pd.Series):
-            raise ValueError(
-                "Input X should be a pandas DataFrame to use MonthlySplit."
-                )
+            raise ValueError("Input X should be a pandas DataFrame to use MonthlySplit.")
 
         col = X[self.time_col]
         if not pd.api.types.is_datetime64_any_dtype(col):
-            raise ValueError(
-                f"The column {self.time_col} is not of datetime type."
-                )
+            raise ValueError(f"The column {self.time_col} is not of datetime type.")
 
+        # ✅ 把“列值”转成 DatetimeIndex（不是用 Series.to_period）
         return pd.DatetimeIndex(col.to_numpy())
 
     def get_n_splits(self, X, y=None, groups=None):

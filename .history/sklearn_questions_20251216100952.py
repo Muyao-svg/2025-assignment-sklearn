@@ -55,78 +55,21 @@ from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
+
+from sklearn.utils.validation import check_is_fitted
+from sklearn.utils.validation import validate_data
+from sklearn.metrics.pairwise import pairwise_distances
+
+
+import numpy as np
+import pandas as pd
+
+from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.model_selection import BaseCrossValidator
 from sklearn.utils.validation import validate_data, check_is_fitted
-from sklearn.utils.multiclass import check_classification_targets
 
 
-class KNearestNeighbors(ClassifierMixin, BaseEstimator):
-    """KNearestNeighbors classifier."""
 
-    def __init__(self, n_neighbors=1):
-        self.n_neighbors = n_neighbors
-
-    def fit(self, X, y):
-        X, y = validate_data(
-            self,
-            X,
-            y,
-            ensure_2d=True,
-            dtype=np.float64,
-            y_numeric=False,
-            multi_output=False,
-        )
-        check_classification_targets(y)
-
-        self.X_train_ = X
-        self.y_train_ = y
-        self.classes_ = np.unique(y)
-        return self
-
-    def predict(self, X):
-        check_is_fitted(self, ["X_train_", "y_train_", "classes_"])
-
-        X = validate_data(
-            self,
-            X,
-            ensure_2d=True,
-            dtype=np.float64,
-            reset=False,
-        )
-
-        n_test = X.shape[0]
-        y_pred = np.empty(n_test, dtype=self.y_train_.dtype)
-        k = int(self.n_neighbors)
-
-        class_order = {c: i for i, c in enumerate(self.classes_)}
-
-        for i in range(n_test):
-            dists = np.linalg.norm(self.X_train_ - X[i], axis=1)
-            nn_idx = np.argsort(dists)[:k]
-            neigh = self.y_train_[nn_idx]
-
-            labels, counts = np.unique(neigh, return_counts=True)
-            max_count = counts.max()
-            candidates = labels[counts == max_count]
-
-            y_pred[i] = min(candidates, key=lambda c: class_order[c])
-
-        return y_pred
-
-    def score(self, X, y):
-        check_is_fitted(self, ["X_train_", "y_train_", "classes_"])
-
-        X, y = validate_data(
-            self,
-            X,
-            y,
-            ensure_2d=True,
-            dtype=np.float64,
-            y_numeric=False,
-            multi_output=False,
-            reset=False,
-        )
-
-        return float(np.mean(self.predict(X) == y))
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -139,31 +82,24 @@ class MonthlySplit(BaseCrossValidator):
     def _get_datetime_index(self, X):
         # 支持 DataFrame / Series
         if not isinstance(X, (pd.DataFrame, pd.Series)):
-            raise ValueError(
-                "Input X should be a pandas DataFrame to use MonthlySplit."
-                )
+            raise ValueError("Input X should be a pandas DataFrame to use MonthlySplit.")
 
         if self.time_col == "index":
             time_vals = X.index
             if not pd.api.types.is_datetime64_any_dtype(time_vals):
-                raise ValueError(
-                    f"The column {self.time_col} is not of datetime type."
-                    )
-
+                raise ValueError(f"The column {self.time_col} is not of datetime type.")
+            # ✅ 直接保证是 DatetimeIndex
             return pd.DatetimeIndex(time_vals)
 
         # time_col != 'index' 时必须是 DataFrame
         if isinstance(X, pd.Series):
-            raise ValueError(
-                "Input X should be a pandas DataFrame to use MonthlySplit."
-                )
+            raise ValueError("Input X should be a pandas DataFrame to use MonthlySplit.")
 
         col = X[self.time_col]
         if not pd.api.types.is_datetime64_any_dtype(col):
-            raise ValueError(
-                f"The column {self.time_col} is not of datetime type."
-                )
+            raise ValueError(f"The column {self.time_col} is not of datetime type.")
 
+        # ✅ 把“列值”转成 DatetimeIndex（不是用 Series.to_period）
         return pd.DatetimeIndex(col.to_numpy())
 
     def get_n_splits(self, X, y=None, groups=None):

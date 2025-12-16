@@ -55,8 +55,18 @@ from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
+
+from sklearn.utils.validation import check_is_fitted
+from sklearn.utils.validation import validate_data
+from sklearn.metrics.pairwise import pairwise_distances
+
+
+import numpy as np
+import pandas as pd
+
+from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.model_selection import BaseCrossValidator
 from sklearn.utils.validation import validate_data, check_is_fitted
-from sklearn.utils.multiclass import check_classification_targets
 
 
 class KNearestNeighbors(ClassifierMixin, BaseEstimator):
@@ -71,25 +81,22 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             X,
             y,
             ensure_2d=True,
-            dtype=np.float64,
+            dtype=np.float64,      # ✅ 强制数值 dtype，避免 object
             y_numeric=False,
             multi_output=False,
         )
-        check_classification_targets(y)
-
         self.X_train_ = X
         self.y_train_ = y
-        self.classes_ = np.unique(y)
         return self
 
     def predict(self, X):
-        check_is_fitted(self, ["X_train_", "y_train_", "classes_"])
+        check_is_fitted(self, ["X_train_", "y_train_"])
 
         X = validate_data(
             self,
             X,
             ensure_2d=True,
-            dtype=np.float64,
+            dtype=np.float64,      
             reset=False,
         )
 
@@ -97,23 +104,21 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         y_pred = np.empty(n_test, dtype=self.y_train_.dtype)
         k = int(self.n_neighbors)
 
-        class_order = {c: i for i, c in enumerate(self.classes_)}
-
         for i in range(n_test):
             dists = np.linalg.norm(self.X_train_ - X[i], axis=1)
-            nn_idx = np.argsort(dists)[:k]
-            neigh = self.y_train_[nn_idx]
 
-            labels, counts = np.unique(neigh, return_counts=True)
-            max_count = counts.max()
-            candidates = labels[counts == max_count]
-
-            y_pred[i] = min(candidates, key=lambda c: class_order[c])
+            if k == 1:
+                y_pred[i] = self.y_train_[np.argmin(dists)]
+            else:
+                nn_idx = np.argsort(dists)[:k]
+                neigh = self.y_train_[nn_idx]
+                labels, counts = np.unique(neigh, return_counts=True)
+                y_pred[i] = labels[counts == counts.max()].min()
 
         return y_pred
 
     def score(self, X, y):
-        check_is_fitted(self, ["X_train_", "y_train_", "classes_"])
+        check_is_fitted(self, ["X_train_", "y_train_"])
 
         X, y = validate_data(
             self,
@@ -128,54 +133,52 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
 
         return float(np.mean(self.predict(X) == y))
 
-
 class MonthlySplit(BaseCrossValidator):
+    """CrossValidator based on monthly split."""
+
     def __init__(self, time_col="index"):
         self.time_col = time_col
 
     def __repr__(self):
+        # 测试里要求 repr 精确匹配这个格式
         return f"MonthlySplit(time_col='{self.time_col}')"
 
-    def _get_datetime_index(self, X):
-        # 支持 DataFrame / Series
-        if not isinstance(X, (pd.DataFrame, pd.Series)):
-            raise ValueError(
-                "Input X should be a pandas DataFrame to use MonthlySplit."
-                )
+    def _get_time_index(self, X):
+        # 支持 DataFrame 和 Series（测试里会传 1d Series）
+        if isinstance(X, (pd.DataFrame, pd.Series)):
+            if self.time_col == "index":
+                time_index = X.index
+            else:
+                # Series 没有列，只有 index
+                if isinstance(X, pd.Series):
+                    raise ValueError(
+                        "Input X should be a pandas DataFrame to use a non-index time_col."
+                    )
+                time_index = X[self.time_col]
 
-        if self.time_col == "index":
-            time_vals = X.index
-            if not pd.api.types.is_datetime64_any_dtype(time_vals):
+            if not pd.api.types.is_datetime64_any_dtype(time_index):
                 raise ValueError(
                     f"The column {self.time_col} is not of datetime type."
-                    )
-
-            return pd.DatetimeIndex(time_vals)
-
-        # time_col != 'index' 时必须是 DataFrame
-        if isinstance(X, pd.Series):
+                )
+            return time_index
+        else:
             raise ValueError(
                 "Input X should be a pandas DataFrame to use MonthlySplit."
-                )
-
-        col = X[self.time_col]
-        if not pd.api.types.is_datetime64_any_dtype(col):
-            raise ValueError(
-                f"The column {self.time_col} is not of datetime type."
-                )
-
-        return pd.DatetimeIndex(col.to_numpy())
+            )
 
     def get_n_splits(self, X, y=None, groups=None):
-        dt_index = self._get_datetime_index(X)
-        months = dt_index.to_period("M").unique()
+        time_index = self._get_time_index(X)
+        periods = time_index.to_period("M")
+        months = pd.PeriodIndex(periods.unique()).sort_values()
         return max(len(months) - 1, 0)
 
     def split(self, X, y=None, groups=None):
-        dt_index = self._get_datetime_index(X)
-        periods = dt_index.to_period("M")
+        time_index = self._get_time_index(X)
+
+        periods = time_index.to_period("M")
         months = pd.PeriodIndex(periods.unique()).sort_values()
 
+        # 按“相邻月份”生成 split：月 i 做 train，月 i+1 做 test
         for i in range(len(months) - 1):
             train_idx = np.where(periods == months[i])[0]
             test_idx = np.where(periods == months[i + 1])[0]

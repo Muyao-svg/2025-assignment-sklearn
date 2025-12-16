@@ -63,7 +63,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):
-        """Initialisation the KNN."""
+        """Initialise KNN."""
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):
@@ -174,7 +174,7 @@ class MonthlySplit(BaseCrossValidator):
     """
 
     def __init__(self, time_col="index"):
-        """Initialisation of CV."""
+        """Initialise CV."""
         self.time_col = time_col
 
     def __repr__(self):

@@ -63,9 +63,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):
-        """
-        Docstring for __init__
-        """
+        """Initialisation the KNN."""
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):
@@ -174,16 +172,13 @@ class MonthlySplit(BaseCrossValidator):
         for which this column is not a datetime, it will raise a ValueError.
         To use the index as column just set `time_col` to `'index'`.
     """
+
     def __init__(self, time_col="index"):
-        """
-        Docstring for __init__
-        """
+        """Initialisation of CV."""
         self.time_col = time_col
 
     def __repr__(self):
-        """
-        Docstring for __repr__
-        """
+        """Return the string representation of the cross-validator."""
         return f"MonthlySplit(time_col='{self.time_col}')"
 
     def _get_datetime_index(self, X):

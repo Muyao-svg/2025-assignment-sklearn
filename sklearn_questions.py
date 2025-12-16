@@ -65,9 +65,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     def __init__(self, n_neighbors=1):
         """
         Docstring for __init__
-        
-        :param self: Description
-        :param n_neighbors: Description
         """
         self.n_neighbors = n_neighbors
 
